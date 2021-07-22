@@ -250,4 +250,21 @@ func TestHandler(t *testing.T) {
 				got, expected)
 		}
 	})
+	t.Run("Get user remote ip", func (t *testing.T) {
+		req, err := http.NewRequest("POST", "/", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rr := httptest.NewRecorder()
+		req.Header.Set("X-Forwarded-For-IP", "2.2.2.2,3.3.3.3,4.4.4.4,127.0.0.1")
+		handler.ServeHTTP(rr, req)
+		if realIp := rr.Header().Get("remote-ip"); realIp != "2.2.2.2" {
+			t.Errorf("handler returned unexpected header: got %v want 2.2.2.2", realIp)
+		}
+		req.Header.Set("X-Real-IP", "1.1.1.1")
+		handler.ServeHTTP(rr, req)
+		if realIp := rr.Header().Get("remote-ip"); realIp != "1.1.1." {
+			t.Errorf("handler returned unexpected header: got %v want 2.2.2.2", realIp)
+		}
+	})
 }

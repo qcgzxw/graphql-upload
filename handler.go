@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -80,10 +81,11 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	var operations interface{}
+	remoteIp := getRemoteIp(r)
 
 	if r.Method == "GET" {
 		request := Request{Context: context.WithValue(r.Context(), "header", r.Header)}
-		request.Context = context.WithValue(request.Context, "remoteAddr", r.RemoteAddr)
+		request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 
 		// Get query
 		if value := r.URL.Query().Get("query"); len(value) == 0 {
@@ -175,7 +177,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				request.Variables = value.(map[string]interface{})
 			}
 			request.Context = context.WithValue(r.Context(), "header", r.Header)
-			request.Context = context.WithValue(request.Context, "remoteAddr", r.RemoteAddr)
+			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 			if err := json.NewEncoder(w).Encode(self.Executor(&request)); err != nil {
 				panic(err)
 			}
@@ -194,7 +196,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					request.Variables = value.(map[string]interface{})
 				}
 				request.Context = context.WithValue(r.Context(), "header", r.Header)
-				request.Context = context.WithValue(request.Context, "remoteAddr", r.RemoteAddr)
+				request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 				result[index] = self.Executor(&request)
 			}
 			if err := json.NewEncoder(w).Encode(result); err != nil {
@@ -206,4 +208,15 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+}
+
+func getRemoteIp(r *http.Request) string {
+	if realIp := r.Header.Get("X-Real-IP"); realIp != "" {
+		return realIp
+	} else if ips := r.Header.Get("X-Forwarded-For"); ips != "" {
+		return strings.Split(ips, ",")[0]
+	} else if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return ip
+	}
+	return r.RemoteAddr
 }
