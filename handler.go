@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 type Handler struct {
@@ -77,6 +79,14 @@ func New(executor Executor, config *Config) *Handler {
 	}
 }
 
+func errHandler(err error) {
+	if errors.Is(err, syscall.EPIPE) {
+		return
+	} else {
+		panic(err)
+	}
+}
+
 func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
@@ -113,7 +123,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result := self.Executor(&request)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
-			panic(err)
+			errHandler(err)
 		}
 	} else if r.Method == "POST" {
 		contentType := strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]
@@ -121,23 +131,23 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		switch contentType {
 		case "text/plain", "application/json":
 			if err := json.NewDecoder(r.Body).Decode(&operations); err != nil {
-				panic(err)
+				errHandler(err)
 			}
 		case "multipart/form-data":
 			// Parse multipart form
 			if err := r.ParseMultipartForm(self.MaxBodySize); err != nil {
-				panic(err)
+				errHandler(err)
 			}
 
 			// Unmarshal uploads
 			var uploads = map[File][]string{}
 			var uploadsMap = map[string][]string{}
 			if err := json.Unmarshal([]byte(r.Form.Get("map")), &uploadsMap); err != nil {
-				panic(err)
+				errHandler(err)
 			} else {
 				for key, path := range uploadsMap {
 					if file, header, err := r.FormFile(key); err != nil {
-						panic(err)
+						errHandler(err)
 						//w.WriteHeader(http.StatusInternalServerError)
 						//return
 					} else {
@@ -152,14 +162,14 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// Unmarshal operations
 			if err := json.Unmarshal([]byte(r.Form.Get("operations")), &operations); err != nil {
-				panic(err)
+				errHandler(err)
 			}
 
 			// set uploads to operations
 			for file, paths := range uploads {
 				for _, path := range paths {
 					if err := set(file, operations, path); err != nil {
-						panic(err)
+						errHandler(err)
 					}
 				}
 			}
@@ -179,7 +189,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			request.Context = context.WithValue(r.Context(), "header", r.Header)
 			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 			if err := json.NewEncoder(w).Encode(self.Executor(&request)); err != nil {
-				panic(err)
+				errHandler(err)
 			}
 		case []interface{}:
 			result := make([]interface{}, len(data))
@@ -200,7 +210,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				result[index] = self.Executor(&request)
 			}
 			if err := json.NewEncoder(w).Encode(result); err != nil {
-				panic(err)
+				errHandler(err)
 			}
 		default:
 			w.WriteHeader(http.StatusBadRequest)
