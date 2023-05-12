@@ -130,8 +130,10 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		switch contentType {
 		case "text/plain", "application/json":
-			if err := json.NewDecoder(r.Body).Decode(&operations); err != nil {
-				errHandler(err)
+			if r.ContentLength > 0 {
+				if err := json.NewDecoder(r.Body).Decode(&operations); err != nil {
+					errHandler(err)
+				}
 			}
 		case "multipart/form-data":
 			// Parse multipart form
@@ -148,8 +150,8 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				for key, path := range uploadsMap {
 					if file, header, err := r.FormFile(key); err != nil {
 						errHandler(err)
-						//w.WriteHeader(http.StatusInternalServerError)
-						//return
+						// w.WriteHeader(http.StatusInternalServerError)
+						// return
 					} else {
 						uploads[File{
 							File:     file,
