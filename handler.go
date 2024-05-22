@@ -123,7 +123,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result := self.Executor(&request)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
-			errHandler(err)
+			message := fmt.Sprintf("Bad operation name")
+			http.Error(w, message, http.StatusBadRequest)
+			return
 		}
 	} else if r.Method == "POST" {
 		contentType := strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]
@@ -132,7 +134,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "text/plain", "application/json":
 			if r.ContentLength > 0 {
 				if err := json.NewDecoder(r.Body).Decode(&operations); err != nil {
-					errHandler(err)
+					message := fmt.Sprintf("JSON syntax error")
+					http.Error(w, message, http.StatusBadRequest)
+					return
 				}
 			}
 		case "multipart/form-data":
