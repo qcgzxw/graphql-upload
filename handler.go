@@ -123,7 +123,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result := self.Executor(&request)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
-			errHandler(err)
+			message := fmt.Sprintf("Bad operation name")
+			http.Error(w, message, http.StatusBadRequest)
+			return
 		}
 	} else if r.Method == "POST" {
 		contentType := strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]
@@ -132,7 +134,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "text/plain", "application/json":
 			if r.ContentLength > 0 {
 				if err := json.NewDecoder(r.Body).Decode(&operations); err != nil {
-					errHandler(err)
+					message := fmt.Sprintf("JSON syntax error")
+					http.Error(w, message, http.StatusBadRequest)
+					return
 				}
 			}
 		case "multipart/form-data":
@@ -180,13 +184,19 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case map[string]interface{}:
 			request := Request{}
 			if value, ok := data["operationName"]; ok && value != nil {
-				request.OperationName = value.(string)
+				if tmp, ok := value.(string); ok {
+					request.OperationName = tmp
+				}
 			}
 			if value, ok := data["query"]; ok && value != nil {
-				request.Query = value.(string)
+				if tmp, ok := value.(string); ok {
+					request.Query = tmp
+				}
 			}
 			if value, ok := data["variables"]; ok && value != nil {
-				request.Variables = value.(map[string]interface{})
+				if tmp, ok := value.(map[string]interface{}); ok {
+					request.Variables = tmp
+				}
 			}
 			request.Context = context.WithValue(r.Context(), "header", r.Header)
 			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
@@ -199,13 +209,19 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				data := operation.(map[string]interface{})
 				request := Request{}
 				if value, ok := data["operationName"]; ok {
-					request.OperationName = value.(string)
+					if tmp, ok := value.(string); ok {
+						request.OperationName = tmp
+					}
 				}
 				if value, ok := data["query"]; ok {
-					request.Query = value.(string)
+					if tmp, ok := value.(string); ok {
+						request.Query = tmp
+					}
 				}
 				if value, ok := data["variables"]; ok {
-					request.Variables = value.(map[string]interface{})
+					if tmp, ok := value.(map[string]interface{}); ok {
+						request.Variables = tmp
+					}
 				}
 				request.Context = context.WithValue(r.Context(), "header", r.Header)
 				request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
