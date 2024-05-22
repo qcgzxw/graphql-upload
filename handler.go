@@ -180,13 +180,19 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case map[string]interface{}:
 			request := Request{}
 			if value, ok := data["operationName"]; ok && value != nil {
-				request.OperationName = value.(string)
+				if tmp, ok := value.(string); ok {
+					request.OperationName = tmp
+				}
 			}
 			if value, ok := data["query"]; ok && value != nil {
-				request.Query = value.(string)
+				if tmp, ok := value.(string); ok {
+					request.Query = tmp
+				}
 			}
 			if value, ok := data["variables"]; ok && value != nil {
-				request.Variables = value.(map[string]interface{})
+				if tmp, ok := value.(map[string]interface{}); ok {
+					request.Variables = tmp
+				}
 			}
 			request.Context = context.WithValue(r.Context(), "header", r.Header)
 			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
@@ -199,13 +205,19 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				data := operation.(map[string]interface{})
 				request := Request{}
 				if value, ok := data["operationName"]; ok {
-					request.OperationName = value.(string)
+					if tmp, ok := value.(string); ok {
+						request.OperationName = tmp
+					}
 				}
 				if value, ok := data["query"]; ok {
-					request.Query = value.(string)
+					if tmp, ok := value.(string); ok {
+						request.Query = tmp
+					}
 				}
 				if value, ok := data["variables"]; ok {
-					request.Variables = value.(map[string]interface{})
+					if tmp, ok := value.(map[string]interface{}); ok {
+						request.Variables = tmp
+					}
 				}
 				request.Context = context.WithValue(r.Context(), "header", r.Header)
 				request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
