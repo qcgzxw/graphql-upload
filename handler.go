@@ -149,13 +149,15 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			var uploads = map[File][]string{}
 			var uploadsMap = map[string][]string{}
 			if err := json.Unmarshal([]byte(r.Form.Get("map")), &uploadsMap); err != nil {
-				errHandler(err)
+				message := fmt.Sprintf("JSON syntax error")
+				http.Error(w, message, http.StatusBadRequest)
+				return
 			} else {
 				for key, path := range uploadsMap {
 					if file, header, err := r.FormFile(key); err != nil {
-						errHandler(err)
-						// w.WriteHeader(http.StatusInternalServerError)
-						// return
+						message := fmt.Sprintf("JSON syntax error")
+						http.Error(w, message, http.StatusBadRequest)
+						return
 					} else {
 						uploads[File{
 							File:     file,
@@ -168,7 +170,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			// Unmarshal operations
 			if err := json.Unmarshal([]byte(r.Form.Get("operations")), &operations); err != nil {
-				errHandler(err)
+				message := fmt.Sprintf("JSON syntax error")
+				http.Error(w, message, http.StatusBadRequest)
+				return
 			}
 
 			// set uploads to operations
@@ -201,7 +205,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			request.Context = context.WithValue(r.Context(), "header", r.Header)
 			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 			if err := json.NewEncoder(w).Encode(self.Executor(&request)); err != nil {
-				errHandler(err)
+				message := fmt.Sprintf("JSON syntax error")
+				http.Error(w, message, http.StatusBadRequest)
+				return
 			}
 		case []interface{}:
 			result := make([]interface{}, len(data))
