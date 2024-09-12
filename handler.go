@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -91,12 +90,9 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	var operations interface{}
-	remoteIp := getRemoteIp(r)
+	request := Request{Context: r.Context()}
 
 	if r.Method == "GET" {
-		request := Request{Context: context.WithValue(r.Context(), "header", r.Header)}
-		request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
-
 		// Get query
 		if value := r.URL.Query().Get("query"); len(value) == 0 {
 			message := fmt.Sprintf("Missing query")
@@ -186,7 +182,6 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		switch data := operations.(type) {
 		case map[string]interface{}:
-			request := Request{}
 			if value, ok := data["operationName"]; ok && value != nil {
 				if tmp, ok := value.(string); ok {
 					request.OperationName = tmp
@@ -202,8 +197,6 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					request.Variables = tmp
 				}
 			}
-			request.Context = context.WithValue(r.Context(), "header", r.Header)
-			request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 			if err := json.NewEncoder(w).Encode(self.Executor(&request)); err != nil {
 				message := fmt.Sprintf("JSON syntax error")
 				http.Error(w, message, http.StatusBadRequest)
@@ -213,7 +206,6 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			result := make([]interface{}, len(data))
 			for index, operation := range data {
 				data := operation.(map[string]interface{})
-				request := Request{}
 				if value, ok := data["operationName"]; ok {
 					if tmp, ok := value.(string); ok {
 						request.OperationName = tmp
@@ -229,8 +221,6 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						request.Variables = tmp
 					}
 				}
-				request.Context = context.WithValue(r.Context(), "header", r.Header)
-				request.Context = context.WithValue(request.Context, "remote-ip", remoteIp)
 				result[index] = self.Executor(&request)
 			}
 			if err := json.NewEncoder(w).Encode(result); err != nil {
@@ -241,16 +231,4 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-}
-
-func getRemoteIp(r *http.Request) string {
-	if realIp := r.Header.Get("X-Real-IP"); realIp != "" {
-		return realIp
-	} else if ips := r.Header.Get("X-Forwarded-For"); ips != "" {
-		return strings.Split(ips, ",")[0]
-	} else if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return ip
-	}
-	return r.RemoteAddr
 }
